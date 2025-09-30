@@ -5,14 +5,16 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/miscdevice.h>
+#include <linux/random.h>
 #include "nxp_simtemp.h"
 
 /************************************
  * STATIC FUNCTION PROTOTYPES
  ************************************/
-#if LOCAL_DEVICE
+#if TEST_LOCAL_DEV
 static void nxp_simtemp_release(struct device *device);
 #endif
+static int nxp_simtemp_get_temp(void);
 static int nxp_simtemp_init(void);
 static void nxp_simtemp_exit(void);
 static int nxp_simtemp_probe(struct platform_device *drvrptr);
@@ -23,7 +25,7 @@ static ssize_t nxp_simtemp_read(struct file *filep, char __user *buf,
 /************************************
  * STATIC VARIABLES
  ************************************/
-#if LOCAL_DEVICE
+#if TEST_LOCAL_DEV
 static struct platform_device nxp_simtemp_device = {
     .name = "nxp_simtemp",
     .id = -1,
@@ -64,7 +66,7 @@ static int nxp_simtemp_init(void) {
     if ( ret) {
         printk("nxp_simtemp: driver register error\n");
     } else {
-#if LOCAL_DEVICE
+#if TEST_LOCAL_DEV
         /* Register device */
         ret = platform_device_register(&nxp_simtemp_device);
         if (ret) {
@@ -85,7 +87,7 @@ static void nxp_simtemp_exit(void) {
     platform_device_unregister(&nxp_simtemp_device);
 }
 
-#if LOCAL_DEVICE
+#if TEST_LOCAL_DEV
 static void nxp_simtemp_release(struct device *device) {
     printk("nxp_simtemp: release\n");
 }
@@ -105,8 +107,28 @@ static void nxp_simtemp_remove(struct platform_device *device) {
 
 static ssize_t nxp_simtemp_read(struct file *filep, char __user *buf, 
                                 size_t count, loff_t *offset) {
+    int temp; /* Temperature */
+
     printk("nxp_simtemp: read\n");
+    /* Get temperature */
+    temp = nxp_simtemp_get_temp();
     return 0;
+}
+
+static int nxp_simtemp_get_temp(void) {
+#if TEST_SIM_TEMP
+    int rnd_num; /* Random 32-bit number */
+#endif
+    int temp = 25000; /* Temperature result */
+
+    /* Get temperature */
+#if TEST_SIM_TEMP
+    /* Get random num and turn it into a temp value in [min,max] range */
+    rnd_num = get_random_u32();
+    temp = TEMP_MIN + (rnd_num % TEMP_RANGE);
+    printk("nxp_simtemp: temperature is: %d\n", temp);
+#endif
+    return temp;
 }
 
 /************************************
