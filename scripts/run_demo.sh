@@ -14,22 +14,17 @@ MODULE_NAME="nxp_simtemp.ko"
 
 remove_module() {
     if lsmod | grep -q "^nxp_simtemp"; then
-    echo "Removing module $MODULE_NAME..."
     sudo rmmod nxp_simtemp
-    echo "Module removed successfully!"
-    else
-        echo "Module nxp_simtemp is not loaded. Nothing to remove."
     fi
 }
 
 # ---------------------------------------------
 # Insert the module
 # ---------------------------------------------
+echo "Instering $MODULE_NAME..."
 if lsmod | grep -q "^nxp_simtemp"; then
-    echo "Module nxp_simtemp is already loaded"
     remove_module
 else
-    echo "Inserting module $MODULE_NAME..."
     sudo insmod "$KBUILD_DIR/$MODULE_NAME"
     echo "Module inserted successfully!"
 fi
@@ -37,9 +32,12 @@ fi
 # ---------------------------------------------
 # CLI test
 # ---------------------------------------------
-echo "Module is now loaded. Running tests..."
+echo "Running tests..."
+sudo cat /dev/nxp_simtemp
 
 # ---------------------------------------------
 # Remove the module
 # ---------------------------------------------
+echo "Removing $MODULE_NAME..."
 remove_module
+echo "Module removed successfully!"

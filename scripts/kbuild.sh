@@ -33,7 +33,6 @@ else
     if [ "$1" == "clean" ]; then
         echo "Clean build..."
         find "$KBUILD_DIR" -mindepth 1 ! -name "*.log" -exec rm -rf {} +
-        read -p "Press Enter to continue..."
     fi
     echo "Building..."
     rsync -au --include='*.c' --include='*.h' --include='Makefile' \
