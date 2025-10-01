@@ -18,7 +18,7 @@
 #if TEST_LOCAL_DEV_EN
 static void nxp_simtemp_release(struct device *device);
 #endif
-static int nxp_simtemp_get_temp(void);
+static void nxp_simtemp_get_temp(void);
 static int nxp_simtemp_init(void);
 static void nxp_simtemp_exit(void);
 static int nxp_simtemp_probe(struct platform_device *drvrptr);
@@ -32,6 +32,18 @@ static __poll_t nxp_simtemp_poll (struct file *file,
 /************************************
  * STATIC VARIABLES
  ************************************/
+static struct hrtimer nxp_simtemp_timer;
+
+static int nxp_simtemp_poll_events;
+
+static wait_queue_head_t nxp_simtemp_wait = __WAIT_QUEUE_HEAD_INITIALIZER(nxp_simtemp_wait);
+
+static int nxp_simtemp_temp;
+
+static int nxp_simtemp_sample_time;
+
+static int nxp_simtemp_temp_tresh;
+
 #if TEST_LOCAL_DEV_EN
 static struct platform_device nxp_simtemp_device = {
     .name = "nxp_simtemp",
@@ -63,18 +75,6 @@ static struct miscdevice nxp_simtemp_miscdev = {
     .fops = &nxp_simtemp_fops,
 };
 
-static struct hrtimer nxp_simtemp_timer;
-static bool nxp_simtemp_poll_events;
-static wait_queue_head_t nxp_simtemp_wait;
-
-static int nxp_simtemp_temp;
-
-#if TEST_SAMPLE_TIME_EN
-int nxp_simtemp_sample_time = SAMPLING_TIME;
-#else
-int nxp_simtemp_sample_time;
-#endif
-
 /************************************
  * STATIC FUNCTIONS
  ************************************/
@@ -95,16 +95,17 @@ static int nxp_simtemp_init(void) {
         }
         else {
 #endif
-            /* Register timer */
+            /* Set params to default */
+            nxp_simtemp_poll_events = EVENT_MASK_DEFAULT;
+            nxp_simtemp_temp_tresh = TEMP_TRESHOLD;
+            nxp_simtemp_sample_time = SAMPLING_TIME;
+            nxp_simtemp_temp = TEMP_VALUE;
+            /* Start timer */
             hrtimer_init(&nxp_simtemp_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
             nxp_simtemp_timer.function = &nxp_simtemp_sample_cbk;
             hrtimer_start(&nxp_simtemp_timer, 
                 ms_to_ktime(nxp_simtemp_sample_time), 
                 HRTIMER_MODE_REL);
-            /* Reset poll events */
-            nxp_simtemp_poll_events = EVENT_MASK_DEFAULT;
-            /* init queue */
-            init_waitqueue_head(&nxp_simtemp_wait);
 #if TEST_LOCAL_DEV_EN
         }
 #endif
@@ -114,11 +115,11 @@ static int nxp_simtemp_init(void) {
 
 static void nxp_simtemp_exit(void) {
     printk("nxp_simtemp: exit\n");
+    /* Cancel sampling timer */
+    hrtimer_cancel(&nxp_simtemp_timer);
     /* Unregister driver and device */
     platform_driver_unregister(&nxp_simtemp_driver);
     platform_device_unregister(&nxp_simtemp_device);
-    /* Cancel sampling timer */
-    hrtimer_cancel(&nxp_simtemp_timer);
 }
 
 #if TEST_LOCAL_DEV_EN
@@ -145,12 +146,15 @@ static ssize_t nxp_simtemp_read(struct file *filep, char __user *buf,
     char msg[32]; /* Temperature message */
     int msg_len; /* Temperature message lenght */
     
+    printk("nxp_simtemp: Read start\n");
     if (EVENT_MASK_DEFAULT == nxp_simtemp_poll_events){
         /* Data is not ready */
         ret = -EAGAIN;
     } else {
+        printk("nxp_simtemp: events: [timer=%d th=%d]\n",
+            !!(nxp_simtemp_poll_events & EVENT_MASK_TIMER),
+            !!(nxp_simtemp_poll_events & EVENT_MASK_TH));
         /* Send temperature to user */
-        printk("nxp_simtemp: Read start\n");
         msg_len = snprintf(msg, sizeof(msg), "%d\n", nxp_simtemp_temp);
         if (msg_len > count) {
             msg_len = count;
@@ -169,44 +173,44 @@ static ssize_t nxp_simtemp_read(struct file *filep, char __user *buf,
     return ret;
 }
 
-static int nxp_simtemp_get_temp(void) {
+static void nxp_simtemp_get_temp(void) {
 #if TEST_SIM_TEMP_EN
     int temp_delta; /* Temperature delta */
-    static int sim_temp = 25000; /* simulated temperature */
 #endif
-    int temp; /* Temperature result */
 
     /* Get temperature */
 #if TEST_SIM_TEMP_EN
     temp_delta = TEMP_DELTA_MIN + (get_random_u32() % TEMP_DELTA_RANGE);
     printk("nxp_simtemp: temperature delta is: %d\n", temp_delta);
-    sim_temp += temp_delta;
-    if (TEMP_MIN > sim_temp) {
-        sim_temp = TEMP_MIN;
-    } else if (TEMP_MAX < sim_temp) {
-        sim_temp = TEMP_MAX;
+    nxp_simtemp_temp += temp_delta;
+    if (TEMP_MIN > nxp_simtemp_temp) {
+        nxp_simtemp_temp = TEMP_MIN;
+    } else if (TEMP_MAX < nxp_simtemp_temp) {
+        nxp_simtemp_temp = TEMP_MAX;
     } else {
         /* Do nothing */
     }
-    printk("nxp_simtemp: temperature is: %d\n", sim_temp);
-    temp = sim_temp;
-#else
-    temp = 25000;
 #endif
-    return temp;
+    printk("nxp_simtemp: temperature is: %d\n", nxp_simtemp_temp);
 }
 
 static enum hrtimer_restart nxp_simtemp_sample_cbk(struct hrtimer * timer) {
     printk("nxp_simtemp: sample callback\n");
     /* Get temperature */
-    nxp_simtemp_temp = nxp_simtemp_get_temp();
+    nxp_simtemp_get_temp();
+    /* Check events */
+    if (nxp_simtemp_temp_tresh < nxp_simtemp_temp) {
+        nxp_simtemp_poll_events |= EVENT_MASK_TH;
+    } else {
+        /* do nothing */
+    }
+    nxp_simtemp_poll_events |= EVENT_MASK_TIMER;
     /* Restart timer */
     hrtimer_forward_now(&nxp_simtemp_timer, 
         ms_to_ktime(nxp_simtemp_sample_time));
     /* Wake up any processes waiting in poll */
     wake_up_interruptible(&nxp_simtemp_wait);
-    /* Set timer poll event */
-    nxp_simtemp_poll_events |= EVENT_MASK_TIMER;
+
     return HRTIMER_RESTART;
 }
 
@@ -215,7 +219,6 @@ static __poll_t nxp_simtemp_poll (struct file *file,
     __poll_t ret = 0;
     printk("nxp_simtemp: poll callback\n");
     poll_wait(file, &nxp_simtemp_wait, table);
-    printk("nxp_simtemp: events are: %x\n", nxp_simtemp_poll_events);
     if (EVENT_MASK_DEFAULT == nxp_simtemp_poll_events) {
         /* Do nothing */
     } else {
