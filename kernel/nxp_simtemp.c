@@ -7,6 +7,8 @@
 #include <linux/miscdevice.h>
 #include <linux/random.h>
 #include <linux/uaccess.h>
+#include <linux/hrtimer.h>
+#include <linux/ktime.h>
 #include "nxp_simtemp.h"
 
 /************************************
@@ -22,6 +24,7 @@ static int nxp_simtemp_probe(struct platform_device *drvrptr);
 static void nxp_simtemp_remove(struct platform_device *drvrptr);
 static ssize_t nxp_simtemp_read(struct file *filep, char __user *buf, 
                                 size_t count, loff_t *offset);
+static enum hrtimer_restart nxp_simtemp_sample_cbk(struct hrtimer * timer);
 
 /************************************
  * STATIC VARIABLES
@@ -56,6 +59,14 @@ static struct miscdevice nxp_simtemp_miscdev = {
     .fops = &nxp_simtemp_fops,
 };
 
+static struct hrtimer nxp_simtemp_timer;
+
+#if TEST_SAMPLE_TIME
+int nxp_simtemp_sample_time = TEST_SAMPLE_TIME;
+#else
+int nxp_simtemp_sample_time;
+#endif
+
 /************************************
  * STATIC FUNCTIONS
  ************************************/
@@ -69,13 +80,20 @@ static int nxp_simtemp_init(void) {
         printk("nxp_simtemp: driver register error\n");
     } else {
 #if TEST_LOCAL_DEV
-        /* Register device */
+        /* Register device */   
         ret = platform_device_register(&nxp_simtemp_device);
         if (ret) {
             printk("nxp_simtemp: device register error\n");
         }
         else {
-            /* Do nothing */
+#endif
+            /* Register timer */
+            hrtimer_init(&nxp_simtemp_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+            nxp_simtemp_timer.function = &nxp_simtemp_sample_cbk;
+            hrtimer_start(&nxp_simtemp_timer, 
+                ms_to_ktime(nxp_simtemp_sample_time), 
+                HRTIMER_MODE_REL);
+#if TEST_LOCAL_DEV
         }
 #endif
     }
@@ -87,6 +105,8 @@ static void nxp_simtemp_exit(void) {
     /* Unregister driver and device */
     platform_driver_unregister(&nxp_simtemp_driver);
     platform_device_unregister(&nxp_simtemp_device);
+    /* Cancel sampling timer */
+    hrtimer_cancel(&nxp_simtemp_timer);
 }
 
 #if TEST_LOCAL_DEV
@@ -157,6 +177,15 @@ static int nxp_simtemp_get_temp(void) {
     temp = 25000;
 #endif
     return temp;
+}
+
+static enum hrtimer_restart nxp_simtemp_sample_cbk(struct hrtimer * timer) {
+    printk("nxp_simtemp: sample callback\n");
+    
+    /* Restart timer */
+    hrtimer_forward_now(&nxp_simtemp_timer, 
+        ms_to_ktime(nxp_simtemp_sample_time));
+    return HRTIMER_RESTART;
 }
 
 /************************************
