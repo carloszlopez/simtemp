@@ -6,6 +6,7 @@
 #include <linux/platform_device.h>
 #include <linux/miscdevice.h>
 #include <linux/random.h>
+#include <linux/uaccess.h>
 #include "nxp_simtemp.h"
 
 /************************************
@@ -54,6 +55,7 @@ static struct miscdevice nxp_simtemp_miscdev = {
     .name = "nxp_simtemp",
     .fops = &nxp_simtemp_fops,
 };
+
 /************************************
  * STATIC FUNCTIONS
  ************************************/
@@ -63,7 +65,7 @@ static int nxp_simtemp_init(void) {
     printk("nxp_simtemp: init\n");
     /* Register driver */
     ret = platform_driver_register(&nxp_simtemp_driver);
-    if ( ret) {
+    if (ret) {
         printk("nxp_simtemp: driver register error\n");
     } else {
 #if TEST_LOCAL_DEV
@@ -107,26 +109,52 @@ static void nxp_simtemp_remove(struct platform_device *device) {
 
 static ssize_t nxp_simtemp_read(struct file *filep, char __user *buf, 
                                 size_t count, loff_t *offset) {
+    ssize_t ret; /* Return result */
     int temp; /* Temperature */
+    char msg[32]; /* Temperature message */
+    int msg_len; /* Temperature message lenght */
 
-    printk("nxp_simtemp: read\n");
-    /* Get temperature */
-    temp = nxp_simtemp_get_temp();
-    return 0;
+    if (*offset > 0) {
+        printk("nxp_simtemp: End of file reached\n");
+        ret = 0;
+    } else {
+        /* Send temperature to user */
+        printk("nxp_simtemp: Read start\n");
+        temp = nxp_simtemp_get_temp();
+        msg_len = snprintf(msg, sizeof(msg), "%d\n", temp);
+        if (copy_to_user(buf, msg, msg_len)) {
+            ret = -EFAULT;
+        } else {
+            ret = msg_len;
+            *offset = msg_len;
+        }
+    }
+    return ret;
 }
 
 static int nxp_simtemp_get_temp(void) {
 #if TEST_SIM_TEMP
-    int rnd_num; /* Random 32-bit number */
+    int temp_delta; /* Temperature delta */
+    static int sim_temp = 25000; /* simulated temperature */
 #endif
-    int temp = 25000; /* Temperature result */
+    int temp; /* Temperature result */
 
     /* Get temperature */
 #if TEST_SIM_TEMP
-    /* Get random num and turn it into a temp value in [min,max] range */
-    rnd_num = get_random_u32();
-    temp = TEMP_MIN + (rnd_num % TEMP_RANGE);
-    printk("nxp_simtemp: temperature is: %d\n", temp);
+    temp_delta = TEMP_DELTA_MIN + (get_random_u32() % TEMP_DELTA_RANGE);
+    printk("nxp_simtemp: temperature delta is: %d\n", temp_delta);
+    sim_temp += temp_delta;
+    if (TEMP_MIN > sim_temp) {
+        sim_temp = TEMP_MIN;
+    } else if (TEMP_MAX < sim_temp) {
+        sim_temp = TEMP_MAX;
+    } else {
+        /* Do nothing */
+    }
+    printk("nxp_simtemp: temperature is: %d\n", sim_temp);
+    temp = sim_temp;
+#else
+    temp = 25000;
 #endif
     return temp;
 }
