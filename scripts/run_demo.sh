@@ -47,7 +47,7 @@ fi
 # ---------------------------------------------
 echo "Running tests... (Press Ctrl+C to stop)"
 # Run CLI in background
-sudo "$CLI_EXE" &
+sudo "$CLI_EXE" read &
 CLI_PID=$!
 
 # ---------------------------------------------
