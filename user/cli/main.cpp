@@ -1,74 +1,117 @@
+/************************************
+ * INCLUDE
+ ************************************/
 #include <iostream>
 #include <fcntl.h>
 #include <poll.h>
 #include <unistd.h>
 #include <cstring>
 #include <signal.h>
+#include <unordered_map>
+#include <functional>
 
-#define ERROR_OPEN_FAILED 1
-#define ERROR_POLL_FAILED 2
-#define ERROR_READ_FAILED 3
-
+/************************************
+ * STATIC VARIABLE
+ ************************************/
 static volatile sig_atomic_t keep_running = 1;
 
-void handle_signal(int sig) {
-    if (sig == SIGTERM) {
-        std::cout << "\nCaught SIGTERM, exiting...\n";
-    } else if (sig == SIGINT) {
-        std::cout << "\nCaught SIGINT (Ctrl+C), exiting...\n";
-    } else {
-        /* Do nothing */
+/************************************
+ * CLASS
+ ************************************/
+class Device {
+public:
+    Device(const std::string& path) : devPath(path) {
+        fd = ::open(devPath.c_str(), O_RDONLY | O_NONBLOCK);
+        if (fd < 0) {
+            throw std::runtime_error("Failed to open device: " + devPath + " (" + strerror(errno) + ")");
+        }
+        std::cout << "Device opened: " << devPath << "\n";
     }
+
+    ~Device() {
+        if (fd >= 0) {
+            ::close(fd);
+            std::cout << "Device closed: " << devPath << "\n";
+        }
+    }
+
+    void read() {
+        char buf[32];
+        struct pollfd pfd;
+        ssize_t ret_read;
+
+        pfd.fd = fd;
+        pfd.events = POLLIN;
+
+        std::cout << "Reading from " << devPath << "\n";
+
+        while (keep_running) {
+            int ret = poll(&pfd, 1, 5000); // 5-second timeout
+            if (ret < 0) {
+                std::cerr << "Poll failed: " << strerror(errno) << "\n";
+                return;
+            } else if (ret == 0) {
+                std::cout << "Poll timeout, no data yet\n";
+                return;
+            }
+
+            if (pfd.revents & POLLIN) {
+                ret_read = ::read(fd, buf, sizeof(buf) - 1);
+                if (ret_read < 0) {
+                    std::cerr << "Read error: " << strerror(errno) << "\n";
+                    return;
+                }
+                buf[ret_read] = '\0';
+                std::cout << "Temperature: " << buf;
+            }
+        }
+    }
+
+private:
+    std::string devPath;
+    int fd{-1};
+};
+
+/************************************
+ * STATIC FUNCTION
+ ************************************/
+void handle_signal(int sig) {
+    (void)sig;
+    std::cout << "\nExiting...\n";
     keep_running = 0;
 }
 
-
-int main() {
-    int ret; /* Return value */
-    int poll_ret; /* Poll function return value */
-    ssize_t read_ret; /* Read function return value */
-    char buf[32]; /* Message buffer */
-    struct pollfd pfd; /* poll file */
-
+int main(int argc, char* argv[]) {
     /* Register handlers for SIGINT and SIGTERM */
     signal(SIGINT, handle_signal);
     signal(SIGTERM, handle_signal);
-    /* Open simtemp */
-    int fd = open("/dev/nxp_simtemp", O_RDONLY | O_NONBLOCK);
-    if (0 > fd) {
-        std::cerr << "Failed to open device\n";
-        ret = ERROR_OPEN_FAILED;
-    } else {
-        /* Read when data is ready (poll) */
-        pfd.fd = fd;
-        pfd.events = POLLIN;
-        while (keep_running) {
-            std::cout << "Waiting for poll event\n";
-            poll_ret = poll(&pfd, 1, 5000);
-            if (0 > poll_ret) {
-                std::cerr << "Failed in poll\n";
-                ret = ERROR_POLL_FAILED;
-                break;
-            } else if (0 == poll_ret) {
-                std::cout << "Timeout\n";
-            } else {
-                /* Read temperature */
-                if (pfd.revents & POLLIN) {
-                    read_ret = read(fd, buf, sizeof(buf) - 1);
-                    if (0 > read_ret) {
-                        std::cerr << "Read error: " << strerror(errno) << "\n";
-                        ret = ERROR_READ_FAILED;
-                    } else if (read_ret == 0) {
-                        // std::cout << "EOF reached\n";    
-                    } else {
-                        buf[read_ret] = '\0';
-                        std::cout << "Temperature: " << buf;
-                    }
-                }
-            }
+
+    try {
+        if (argc < 2) {
+            std::cerr << "Usage: " << argv[0] << " <operation>\n";
+            return 0;
         }
-        std::cout << "Exiting, closing device\n";
-        close(fd);
+
+        std::string operation = argv[1];
+        std::string devPath = "/dev/nxp_simtemp";
+
+        Device dev(devPath);
+
+        /* Command dispatcher */
+        std::unordered_map<std::string, std::function<void()>> commands;
+        commands["read"] = [&dev]() { dev.read(); };
+
+        if (commands.find(operation) == commands.end()) {
+            std::cerr << "Unknown operation: " << operation << "\n";
+            return 0;
+        }
+
+        commands[operation]();
+
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << "\n";
+        return 1;
     }
-    return ret;
+
+    return 0;
 }
