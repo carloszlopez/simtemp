@@ -10,14 +10,13 @@
 #include <linux/hrtimer.h>
 #include <linux/ktime.h>
 #include <linux/poll.h>
+#include <linux/minmax.h>
 #include "nxp_simtemp.h"
 
 /************************************
  * STATIC FUNCTION PROTOTYPES
  ************************************/
-#if TEST_LOCAL_DEV_EN
 static void nxp_simtemp_release(struct device *device);
-#endif
 static void nxp_simtemp_get_temp(void);
 static int nxp_simtemp_init(void);
 static void nxp_simtemp_exit(void);
@@ -31,20 +30,20 @@ static __poll_t nxp_simtemp_poll (struct file *file,
 
 /************************************
  * STATIC VARIABLES
- ************************************/
+ ************************************/            
+/* This variable is used to store internal events */
+static int nxp_simtemp_poll_events = EVENT_MASK_DEFAULT;
+/* This variable is used to store the temperature threshold */
+static int nxp_simtemp_temp_tresh = TEMP_THRESHOLD;
+/* This variable is used to store the temperature */
+static int nxp_simtemp_temp = TEMP_VALUE;
+/* This variable is used to store the sampling time */
+static int nxp_simtemp_sample_time = SAMPLING_TIME;
+/* This variable is used to store the sampling timer */
 static struct hrtimer nxp_simtemp_timer;
-
-static int nxp_simtemp_poll_events;
-
+/* This variable is used to store the wait queue */
 static wait_queue_head_t nxp_simtemp_wait = __WAIT_QUEUE_HEAD_INITIALIZER(nxp_simtemp_wait);
-
-static int nxp_simtemp_temp;
-
-static int nxp_simtemp_sample_time;
-
-static int nxp_simtemp_temp_tresh;
-
-#if TEST_LOCAL_DEV_EN
+/* This variable is used to store the platform device */
 static struct platform_device nxp_simtemp_device = {
     .name = "nxp_simtemp",
     .id = -1,
@@ -52,8 +51,7 @@ static struct platform_device nxp_simtemp_device = {
         .release = nxp_simtemp_release,
     },
 };
-#endif
-
+/* This variable is used to store the platform driver */
 static struct platform_driver nxp_simtemp_driver = {
     .probe = nxp_simtemp_probe,
     .remove = nxp_simtemp_remove,
@@ -62,13 +60,13 @@ static struct platform_driver nxp_simtemp_driver = {
         .owner = THIS_MODULE,
     },
 };
-
+/* This variable is used to store the character device operations */
 static const struct file_operations nxp_simtemp_fops = {
     .owner = THIS_MODULE,
     .read  = nxp_simtemp_read,
     .poll = nxp_simtemp_poll,
 };
-
+/* This variable is used to store the character device */
 static struct miscdevice nxp_simtemp_miscdev = {
     .minor = MISC_DYNAMIC_MINOR,
     .name = "nxp_simtemp",
@@ -78,153 +76,148 @@ static struct miscdevice nxp_simtemp_miscdev = {
 /************************************
  * STATIC FUNCTIONS
  ************************************/
-static int nxp_simtemp_init(void) {
-    int ret;
-    
+/* Init module function */
+static int nxp_simtemp_init(void) {    
     printk("nxp_simtemp: init\n");
+
     /* Register driver */
-    ret = platform_driver_register(&nxp_simtemp_driver);
+    int ret = platform_driver_register(&nxp_simtemp_driver);
     if (ret) {
-        printk("nxp_simtemp: driver register error\n");
-    } else {
-#if TEST_LOCAL_DEV_EN
-        /* Register device */   
-        ret = platform_device_register(&nxp_simtemp_device);
-        if (ret) {
-            printk("nxp_simtemp: device register error\n");
-        }
-        else {
-#endif
-            /* Set params to default */
-            nxp_simtemp_poll_events = EVENT_MASK_DEFAULT;
-            nxp_simtemp_temp_tresh = TEMP_TRESHOLD;
-            nxp_simtemp_sample_time = SAMPLING_TIME;
-            nxp_simtemp_temp = TEMP_VALUE;
-            /* Start timer */
-            hrtimer_init(&nxp_simtemp_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-            nxp_simtemp_timer.function = &nxp_simtemp_sample_cbk;
-            hrtimer_start(&nxp_simtemp_timer, 
-                ms_to_ktime(nxp_simtemp_sample_time), 
-                HRTIMER_MODE_REL);
-#if TEST_LOCAL_DEV_EN
-        }
-#endif
+        printk("nxp_simtemp: error on platform driver registration\n");
+        return ret;
     }
-    return ret;
+    
+    /* Register device */   
+    ret = platform_device_register(&nxp_simtemp_device);
+    if (ret) {
+        printk("nxp_simtemp: error on platform device registration\n");
+        return ret;
+    }
+    
+    return 0;
 }
 
+/* Exit module function */
 static void nxp_simtemp_exit(void) {
     printk("nxp_simtemp: exit\n");
-    /* Cancel sampling timer */
-    hrtimer_cancel(&nxp_simtemp_timer);
-    /* Unregister driver and device */
-    platform_driver_unregister(&nxp_simtemp_driver);
+    
+    /* Unregister device */
     platform_device_unregister(&nxp_simtemp_device);
+    
+    /* Unregister driver */
+    platform_driver_unregister(&nxp_simtemp_driver);
 }
 
-#if TEST_LOCAL_DEV_EN
 static void nxp_simtemp_release(struct device *device) {
     printk("nxp_simtemp: release\n");
 }
-#endif
 
+/* Probe device function */
 static int nxp_simtemp_probe(struct platform_device *device) {
     printk("nxp_simtemp: release\n");
+
     /* Register character device */
-    return misc_register(&nxp_simtemp_miscdev);
+    int ret = misc_register(&nxp_simtemp_miscdev);
+    if (ret) {
+        printk("nxp_simtemp: error on character device registration\n");
+        return ret;
+    }
+
+    /* Start timer */
+    hrtimer_init(&nxp_simtemp_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+    nxp_simtemp_timer.function = &nxp_simtemp_sample_cbk;
+    hrtimer_start(&nxp_simtemp_timer, ms_to_ktime(nxp_simtemp_sample_time),
+        HRTIMER_MODE_REL);
+    return 0;
 }
 
+/* Remove device function */
 static void nxp_simtemp_remove(struct platform_device *device) {
     printk("nxp_simtemp: remove\n");
+    /* Cancel timer */
+    hrtimer_cancel(&nxp_simtemp_timer);
     /* Deregister character device */
-    return misc_deregister(&nxp_simtemp_miscdev);
+    misc_deregister(&nxp_simtemp_miscdev);
 }
 
+/* Read function for character device */
 static ssize_t nxp_simtemp_read(struct file *filep, char __user *buf, 
                                 size_t count, loff_t *offset) {
-    ssize_t ret; /* Return result */
     char msg[32]; /* Temperature message */
-    int msg_len; /* Temperature message lenght */
     
     printk("nxp_simtemp: Read start\n");
     if (EVENT_MASK_DEFAULT == nxp_simtemp_poll_events){
         /* Data is not ready */
-        ret = -EAGAIN;
-    } else {
-        printk("nxp_simtemp: events: [timer=%d th=%d]\n",
-            !!(nxp_simtemp_poll_events & EVENT_MASK_TIMER),
-            !!(nxp_simtemp_poll_events & EVENT_MASK_TH));
-        /* Send temperature to user */
-        msg_len = snprintf(msg, sizeof(msg), "%d\n", nxp_simtemp_temp);
-        if (msg_len > count) {
-            msg_len = count;
-        } else {
-            /* do nothing */
-
-        }
-        if (copy_to_user(buf, msg, msg_len)) {
-            ret = -EFAULT;
-        } else {
-            /* Clear events */
-            nxp_simtemp_poll_events = EVENT_MASK_DEFAULT;
-            ret = msg_len;
-        }
+        return -EAGAIN;
     }
-    return ret;
+
+    /* Clear events */
+    nxp_simtemp_poll_events = EVENT_MASK_DEFAULT;
+
+    /* Format temperature as string */
+    int msg_len = snprintf(msg, sizeof(msg), "%d\n", nxp_simtemp_temp);
+    /* Clamp msg len to requested len */
+    if (msg_len > count) {
+        msg_len = count;
+    }
+    /* Send msg to user */
+    if (copy_to_user(buf, msg, msg_len)) {
+        return -EFAULT;
+    }
+    return msg_len;
 }
 
+/* Function used to simulate temperature */
 static void nxp_simtemp_get_temp(void) {
-#if TEST_SIM_TEMP_EN
-    int temp_delta; /* Temperature delta */
-#endif
+    /* Get a random temp in [TEMP_DELTA_MIN,TEMP_DELTA_MAX] range */
+    int temp_delta = TEMP_DELTA_MIN + (get_random_u32() % TEMP_DELTA_RANGE);
 
-    /* Get temperature */
-#if TEST_SIM_TEMP_EN
-    temp_delta = TEMP_DELTA_MIN + (get_random_u32() % TEMP_DELTA_RANGE);
-    printk("nxp_simtemp: temperature delta is: %d\n", temp_delta);
+    /* Calculate new temperature based on temp_delta */
     nxp_simtemp_temp += temp_delta;
-    if (TEMP_MIN > nxp_simtemp_temp) {
-        nxp_simtemp_temp = TEMP_MIN;
-    } else if (TEMP_MAX < nxp_simtemp_temp) {
-        nxp_simtemp_temp = TEMP_MAX;
-    } else {
-        /* Do nothing */
-    }
-#endif
+    
+    /* Clamp temperature to [TEMP_MIN,TEMP_MAX] range */
+    nxp_simtemp_temp = clamp(nxp_simtemp_temp, TEMP_MIN, TEMP_MAX);
+    
     printk("nxp_simtemp: temperature is: %d\n", nxp_simtemp_temp);
 }
 
+/* Callback for temperature sample */
 static enum hrtimer_restart nxp_simtemp_sample_cbk(struct hrtimer * timer) {
     printk("nxp_simtemp: sample callback\n");
+
     /* Get temperature */
     nxp_simtemp_get_temp();
-    /* Check events */
-    if (nxp_simtemp_temp_tresh < nxp_simtemp_temp) {
-        nxp_simtemp_poll_events |= EVENT_MASK_TH;
-    } else {
-        /* do nothing */
-    }
+
+    /* Set time event */
     nxp_simtemp_poll_events |= EVENT_MASK_TIMER;
+    /* Set threshold event if temperature is avobe threshold */
+    if (nxp_simtemp_temp >= nxp_simtemp_temp_tresh) {
+        nxp_simtemp_poll_events |= EVENT_MASK_TH;
+    }
+
+    /* Wake up any processes waiting in poll */
+    wake_up_interruptible(&nxp_simtemp_wait);
+    
     /* Restart timer */
     hrtimer_forward_now(&nxp_simtemp_timer, 
         ms_to_ktime(nxp_simtemp_sample_time));
-    /* Wake up any processes waiting in poll */
-    wake_up_interruptible(&nxp_simtemp_wait);
 
     return HRTIMER_RESTART;
 }
 
 static __poll_t nxp_simtemp_poll (struct file *file, 
                                   struct poll_table_struct *table) {
-    __poll_t ret = 0;
     printk("nxp_simtemp: poll callback\n");
+    
+    /* Wait for nxp_simtemp_wait */
     poll_wait(file, &nxp_simtemp_wait, table);
-    if (EVENT_MASK_DEFAULT == nxp_simtemp_poll_events) {
-        /* Do nothing */
-    } else {
-        ret = POLLIN;
+    
+    /* Check if data is ready */
+    if (nxp_simtemp_poll_events != EVENT_MASK_DEFAULT) {
+        return POLLIN;
     }
-    return ret;
+
+    return 0;
 }
 
 /************************************
