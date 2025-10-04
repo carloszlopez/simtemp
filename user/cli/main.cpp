@@ -9,6 +9,24 @@
 #include <signal.h>
 #include <unordered_map>
 #include <functional>
+#include <iomanip>
+#include <stdint.h>
+#include <ctime>
+
+/************************************
+ * DEFINE
+ ************************************/
+#define EVENT_MASK_TIMER (0x1) /* Event mask for time expired */
+#define EVENT_MASK_TH (0x2) /* Event mask for time threshold crossed */
+
+/************************************
+ * STRUCT
+ ************************************/
+struct nxp_simtemp_sample_t {
+    uint64_t timestamp_ns; /* monotonic timestamp */
+    int32_t temp_mC; /* milli-degree Celsius */
+    uint32_t flags; /* Events */
+} __attribute__((packed));
 
 /************************************
  * STATIC VARIABLE
@@ -36,9 +54,8 @@ public:
     }
 
     void read() {
-        char buf[32];
+        nxp_simtemp_sample_t sample;
         struct pollfd pfd;
-        ssize_t ret_read;
 
         pfd.fd = fd;
         pfd.events = POLLIN;
@@ -56,13 +73,33 @@ public:
             }
 
             if (pfd.revents & POLLIN) {
-                ret_read = ::read(fd, buf, sizeof(buf) - 1);
+                ssize_t ret_read = ::read(fd, &sample, sizeof(sample));
                 if (ret_read < 0) {
                     std::cerr << "Read error: " << strerror(errno) << "\n";
                     return;
                 }
-                buf[ret_read] = '\0';
-                std::cout << "Temperature: " << buf;
+                if (ret_read == sizeof(sample)){
+                    /* Split nanoseconds into seconds and milliseconds */
+                    uint64_t seconds = sample.timestamp_ns / 1000000000ULL;
+                    uint64_t millis  = (sample.timestamp_ns / 1000000ULL) % 1000;
+
+                    /* Convert seconds to UTC time struct */
+                    std::time_t t = static_cast<std::time_t>(seconds);
+                    std::tm tm_utc{};
+                    gmtime_r(&t, &tm_utc);
+
+                    /* Time stamp in 2025-09-22T20:15:04.123Z fromat */
+                    std::cout << std::put_time(&tm_utc, "%Y-%m-%dT%H:%M:%S")
+                        << '.' << std::setw(3) << std::setfill('0') << millis 
+                        << 'Z'
+                        /* Time in Celsius */
+                        << " temp=" << sample.temp_mC / 1000.0 << "°C"
+                        /* Timer alert */
+                        << " tmr_flag=" << !!(sample.flags & EVENT_MASK_TIMER)
+                        /* Temperature threshold alert */
+                        << " th_flag=" << !!(sample.flags & EVENT_MASK_TH)
+                        << "\n";
+                }
             }
         }
     }
