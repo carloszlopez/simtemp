@@ -14,9 +14,11 @@ MODULE_NAME="nxp_simtemp.ko"
 CLI_EXE="$PROJECT_ROOT/user/cli/nxp_simtemp_cli"
 
 remove_module() {
+    echo "Removing $MODULE_NAME..."
     if lsmod | grep -q "^nxp_simtemp"; then
     sudo rmmod nxp_simtemp
     fi
+    echo "Module removed successfully!"
 }
 
 cleanup() {
@@ -45,15 +47,41 @@ fi
 # ---------------------------------------------
 # CLI test
 # ---------------------------------------------
-echo "Running tests... (Press Ctrl+C to stop)"
-# Run CLI in background
+echo "Reading sampling_ms... "
+set +e
+sudo "$CLI_EXE" readattr sampling_ms
+RET=$?
+set -e
+if [ $RET -eq 0 ]; then
+    echo "sampling_ms read successfully!"
+else
+    echo "Failed to read sampling_ms"
+    remove_module
+    exit 1
+fi
+
+echo "Reading threshold_mC... "
+set +e
+sudo "$CLI_EXE" readattr threshold_mC
+RET=$?
+set -e
+if [ $RET -eq 0 ]; then
+    echo "threshold_mC read successfully!"
+else
+    echo "Failed to read threshold_mC"
+    remove_module
+    exit 1
+fi
+
+echo "Reading temperature... "
 sudo "$CLI_EXE" read &
 CLI_PID=$!
+
+echo "TEST ... "
+sleep 5
 
 # ---------------------------------------------
 # Remove the module
 # ---------------------------------------------
 wait $CLI_PID
-echo "Removing $MODULE_NAME..."
 remove_module
-echo "Module removed successfully!"

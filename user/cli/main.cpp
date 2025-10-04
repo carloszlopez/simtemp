@@ -38,7 +38,8 @@ static volatile sig_atomic_t keep_running = 1;
  ************************************/
 class Device {
 public:
-    Device(const std::string& path) : devPath(path) {
+    Device(const std::string& devPath, const std::string& sysfsBase) 
+        : devPath(devPath), sysfsBase(sysfsBase) {
         fd = ::open(devPath.c_str(), O_RDONLY | O_NONBLOCK);
         if (fd < 0) {
             throw std::runtime_error("Failed to open device: " + devPath + " (" + strerror(errno) + ")");
@@ -104,8 +105,31 @@ public:
         }
     }
 
+    void read_attr(const std::string& name) {
+        std::string path = sysfsBase + "/" + name;
+
+        int fd_attr = ::open(path.c_str(), O_RDONLY);
+        if (fd_attr < 0) {
+            throw std::runtime_error("Failed to open " + path + ": " + strerror(errno));
+        }
+
+        char buf[64];
+        ssize_t len = ::read(fd_attr, buf, sizeof(buf) - 1);
+        if (len < 0) {
+            ::close(fd_attr);
+            throw std::runtime_error("Failed to read " + path + ": " + strerror(errno));
+        }
+
+        buf[len] = '\0'; // null terminate
+
+        std::cout << name << " = " << buf;
+
+        ::close(fd_attr);
+    }
+
 private:
     std::string devPath;
+    std::string sysfsBase;
     int fd{-1};
 };
 
@@ -125,18 +149,24 @@ int main(int argc, char* argv[]) {
 
     try {
         if (argc < 2) {
-            std::cerr << "Usage: " << argv[0] << " <operation>\n";
+            std::cerr << "Usage: " << argv[0] << " <operation> [<argument>]\n";
             return 0;
         }
 
         std::string operation = argv[1];
         std::string devPath = "/dev/nxp_simtemp";
+        std::string sysfsBase = "/sys/class/misc/nxp_simtemp";
 
-        Device dev(devPath);
+        Device dev(devPath, sysfsBase);
 
         /* Command dispatcher */
         std::unordered_map<std::string, std::function<void()>> commands;
         commands["read"] = [&dev]() { dev.read(); };
+
+        if (argc >= 3) {
+            std::string arg = argv[2];
+            commands["readattr"] = [&dev, arg]() { dev.read_attr(arg); };
+        }
 
         if (commands.find(operation) == commands.end()) {
             std::cerr << "Unknown operation: " << operation << "\n";
