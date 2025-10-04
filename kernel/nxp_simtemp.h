@@ -1,10 +1,6 @@
 #ifndef NXP_SIMTEMP_H
 #define NXP_SIMTEMP_H
 
-/************************************
- * INCLUDES
- ************************************/
-
  /************************************
  * DEFINE
  ************************************/
@@ -24,5 +20,14 @@
 #define TEMP_THRESHOLD (10000) /* Default temperature threshold for event */
 #define TEMP_DELTA_MAX (5000) /* Min temperature delta (-5 Celsius) */
 #define TEMP_DELTA_RANGE (TEMP_DELTA_MAX - TEMP_DELTA_MIN + 1) /* Delta range */
+
+ /************************************
+ * STRUCT
+ ************************************/
+struct nxp_simtemp_sample_t {
+    __u64 timestamp_ns;   /* monotonic timestamp */
+    __s32 temp_mC;        /* milli-degree Celsius */
+    __u32 flags;          /* Events */
+} __attribute__((packed));
 
 #endif

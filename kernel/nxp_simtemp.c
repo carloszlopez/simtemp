@@ -11,6 +11,7 @@
 #include <linux/ktime.h>
 #include <linux/poll.h>
 #include <linux/minmax.h>
+#include <linux/types.h>
 #include "nxp_simtemp.h"
 
 /************************************
@@ -30,13 +31,9 @@ static __poll_t nxp_simtemp_poll (struct file *file,
 
 /************************************
  * STATIC VARIABLES
- ************************************/            
-/* This variable is used to store internal events */
-static int nxp_simtemp_poll_events = EVENT_MASK_DEFAULT;
+ ************************************/
 /* This variable is used to store the temperature threshold */
 static int nxp_simtemp_temp_tresh = TEMP_THRESHOLD;
-/* This variable is used to store the temperature */
-static int nxp_simtemp_temp = TEMP_VALUE;
 /* This variable is used to store the sampling time */
 static int nxp_simtemp_sample_time = SAMPLING_TIME;
 /* This variable is used to store the sampling timer */
@@ -71,6 +68,11 @@ static struct miscdevice nxp_simtemp_miscdev = {
     .minor = MISC_DYNAMIC_MINOR,
     .name = "nxp_simtemp",
     .fops = &nxp_simtemp_fops,
+};
+static struct nxp_simtemp_sample_t nxp_simtemp_sample = {
+    .timestamp_ns = 0,
+    .temp_mC = TEMP_VALUE,
+    .flags = EVENT_MASK_DEFAULT,
 };
 
 /************************************
@@ -146,16 +148,12 @@ static ssize_t nxp_simtemp_read(struct file *filep, char __user *buf,
     char msg[32]; /* Temperature message */
     
     printk("nxp_simtemp: Read start\n");
-    if (EVENT_MASK_DEFAULT == nxp_simtemp_poll_events){
-        /* Data is not ready */
-        return -EAGAIN;
-    }
 
     /* Clear events */
-    nxp_simtemp_poll_events = EVENT_MASK_DEFAULT;
+    nxp_simtemp_sample.flags = EVENT_MASK_DEFAULT;
 
     /* Format temperature as string */
-    int msg_len = snprintf(msg, sizeof(msg), "%d\n", nxp_simtemp_temp);
+    int msg_len = snprintf(msg, sizeof(msg), "%d\n", nxp_simtemp_sample.temp_mC);
     /* Clamp msg len to requested len */
     if (msg_len > count) {
         msg_len = count;
@@ -173,12 +171,12 @@ static void nxp_simtemp_get_temp(void) {
     int temp_delta = TEMP_DELTA_MIN + (get_random_u32() % TEMP_DELTA_RANGE);
 
     /* Calculate new temperature based on temp_delta */
-    nxp_simtemp_temp += temp_delta;
+    nxp_simtemp_sample.temp_mC += temp_delta;
     
     /* Clamp temperature to [TEMP_MIN,TEMP_MAX] range */
-    nxp_simtemp_temp = clamp(nxp_simtemp_temp, TEMP_MIN, TEMP_MAX);
+    nxp_simtemp_sample.temp_mC = clamp(nxp_simtemp_sample.temp_mC, TEMP_MIN, TEMP_MAX);
     
-    printk("nxp_simtemp: temperature is: %d\n", nxp_simtemp_temp);
+    printk("nxp_simtemp: temperature is: %d\n", nxp_simtemp_sample.temp_mC);
 }
 
 /* Callback for temperature sample */
@@ -189,10 +187,10 @@ static enum hrtimer_restart nxp_simtemp_sample_cbk(struct hrtimer * timer) {
     nxp_simtemp_get_temp();
 
     /* Set time event */
-    nxp_simtemp_poll_events |= EVENT_MASK_TIMER;
+    nxp_simtemp_sample.flags |= EVENT_MASK_TIMER;
     /* Set threshold event if temperature is avobe threshold */
-    if (nxp_simtemp_temp >= nxp_simtemp_temp_tresh) {
-        nxp_simtemp_poll_events |= EVENT_MASK_TH;
+    if (nxp_simtemp_sample.temp_mC >= nxp_simtemp_temp_tresh) {
+        nxp_simtemp_sample.flags |= EVENT_MASK_TH;
     }
 
     /* Wake up any processes waiting in poll */
@@ -213,7 +211,7 @@ static __poll_t nxp_simtemp_poll (struct file *file,
     poll_wait(file, &nxp_simtemp_wait, table);
     
     /* Check if data is ready */
-    if (nxp_simtemp_poll_events != EVENT_MASK_DEFAULT) {
+    if (nxp_simtemp_sample.flags != EVENT_MASK_DEFAULT) {
         return POLLIN;
     }
 
