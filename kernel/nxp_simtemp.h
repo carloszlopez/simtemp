@@ -29,4 +29,10 @@ struct nxp_simtemp_sample_t {
     __u32 flags;          /* Events */
 } __attribute__((packed));
 
+/* strcut representing the configuration */
+struct nxp_simtemp_cfg_t {
+    int sampling_ms; /* update period */
+    int threshold_mC; /* alert threshold in milli‑°C */
+};
+
 #endif

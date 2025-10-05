@@ -28,18 +28,32 @@ static ssize_t nxp_simtemp_read(struct file *filep, char __user *buf,
 static enum hrtimer_restart nxp_simtemp_sample_cbk(struct hrtimer * timer);
 static __poll_t nxp_simtemp_poll (struct file *file, 
                                   struct poll_table_struct *table);
+static ssize_t sampling_ms_show(struct device *dev,
+                                struct device_attribute *attr,
+                                char *buf);
+static ssize_t sampling_ms_store(struct device *dev, 
+                                 struct device_attribute *attr, 
+                                 const char *buf, size_t count);
+static ssize_t threshold_mC_show(struct device *dev,
+                                struct device_attribute *attr,
+                                char *buf);
+static ssize_t threshold_mC_store(struct device *dev, 
+                                 struct device_attribute *attr, 
+                                 const char *buf, size_t count);
 
 /************************************
  * STATIC VARIABLES
  ************************************/
-/* This variable is used to store the temperature threshold */
-static int nxp_simtemp_temp_tresh = TEMP_MAX;
-/* This variable is used to store the sampling time */
-static int nxp_simtemp_sample_time = SAMPLING_TIME;
+/* This variable is used to store the configuration */
+static struct nxp_simtemp_cfg_t nxp_simtemp_cfg = {
+    .sampling_ms = SAMPLING_TIME,
+    .threshold_mC = TEMP_MAX
+};
 /* This variable is used to store the sampling timer */
 static struct hrtimer nxp_simtemp_timer;
 /* This variable is used to store the wait queue */
-static wait_queue_head_t nxp_simtemp_wait = __WAIT_QUEUE_HEAD_INITIALIZER(nxp_simtemp_wait);
+static wait_queue_head_t nxp_simtemp_wait 
+    = __WAIT_QUEUE_HEAD_INITIALIZER(nxp_simtemp_wait);
 /* This variable is used to store the platform device */
 static struct platform_device nxp_simtemp_device = {
     .name = "nxp_simtemp",
@@ -69,11 +83,16 @@ static struct miscdevice nxp_simtemp_miscdev = {
     .name = "nxp_simtemp",
     .fops = &nxp_simtemp_fops,
 };
+/* This variable is used to store the sample values */
 static struct nxp_simtemp_sample_t nxp_simtemp_sample = {
     .timestamp_ns = 0,
     .temp_mC = TEMP_VALUE,
     .flags = EVENT_MASK_DEFAULT,
 };
+/* This variable is used to store the sampling_ms device attribute */
+static DEVICE_ATTR_RW(sampling_ms);
+/* This variable is used to store the threshold_mC device attribute */
+static DEVICE_ATTR_RW(threshold_mC);
 
 /************************************
  * STATIC FUNCTIONS
@@ -125,10 +144,18 @@ static int nxp_simtemp_probe(struct platform_device *device) {
         return ret;
     }
 
+    /* Create fs */
+    ret = device_create_file(nxp_simtemp_miscdev.this_device, 
+        &dev_attr_sampling_ms);
+    if (ret) return ret;
+    ret = device_create_file(nxp_simtemp_miscdev.this_device, 
+        &dev_attr_threshold_mC);
+    if (ret) return ret;
+
     /* Start timer */
     hrtimer_init(&nxp_simtemp_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
     nxp_simtemp_timer.function = &nxp_simtemp_sample_cbk;
-    hrtimer_start(&nxp_simtemp_timer, ms_to_ktime(nxp_simtemp_sample_time),
+    hrtimer_start(&nxp_simtemp_timer, ms_to_ktime(nxp_simtemp_cfg.sampling_ms),
         HRTIMER_MODE_REL);
     return 0;
 }
@@ -193,7 +220,7 @@ static enum hrtimer_restart nxp_simtemp_sample_cbk(struct hrtimer * timer) {
     nxp_simtemp_sample.flags |= EVENT_MASK_TIMER;
 
     /* Set threshold event if temperature is avobe threshold */
-    if (nxp_simtemp_sample.temp_mC >= nxp_simtemp_temp_tresh) {
+    if (nxp_simtemp_sample.temp_mC >= nxp_simtemp_cfg.threshold_mC) {
         nxp_simtemp_sample.flags |= EVENT_MASK_TH;
     }
 
@@ -205,11 +232,12 @@ static enum hrtimer_restart nxp_simtemp_sample_cbk(struct hrtimer * timer) {
     
     /* Restart timer */
     hrtimer_forward_now(&nxp_simtemp_timer, 
-        ms_to_ktime(nxp_simtemp_sample_time));
+        ms_to_ktime(nxp_simtemp_cfg.sampling_ms));
 
     return HRTIMER_RESTART;
 }
 
+/* poll callback */
 static __poll_t nxp_simtemp_poll (struct file *file, 
                                   struct poll_table_struct *table) {
     printk("nxp_simtemp: poll callback\n");
@@ -223,6 +251,44 @@ static __poll_t nxp_simtemp_poll (struct file *file,
     }
 
     return 0;
+}
+
+/* sampling_ms show callback */
+static ssize_t sampling_ms_show(struct device *dev,
+                                struct device_attribute *attr,
+                                char *buf)
+{
+    return sprintf(buf, "%d\n", nxp_simtemp_cfg.sampling_ms);
+}
+
+/* sampling_ms store callback */
+static ssize_t sampling_ms_store(struct device *dev, 
+                                 struct device_attribute *attr, 
+                                 const char *buf, size_t count) {
+    int val;
+    if (kstrtoint(buf, 10, &val))
+        return -EINVAL;
+    nxp_simtemp_cfg.sampling_ms = val;
+    return count;
+}
+
+/* threshold_mC show callback */
+static ssize_t threshold_mC_show(struct device *dev,
+                                 struct device_attribute *attr,
+                                 char *buf) {
+    return sprintf(buf, "%d\n", nxp_simtemp_cfg.threshold_mC);
+}
+
+/* threshold_mC store callback */
+static ssize_t threshold_mC_store(struct device *dev,
+                                  struct device_attribute *attr,
+                                  const char *buf, size_t count) {
+    int val;
+    if (kstrtoint(buf, 10, &val))
+        return -EINVAL;
+
+    nxp_simtemp_cfg.threshold_mC = val;
+    return count;
 }
 
 /************************************
