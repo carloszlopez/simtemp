@@ -47,6 +47,7 @@ fi
 # ---------------------------------------------
 # CLI test
 # ---------------------------------------------
+echo " "
 echo "Reading sampling_ms... "
 set +e
 sudo "$CLI_EXE" readattr sampling_ms
@@ -60,6 +61,7 @@ else
     exit 1
 fi
 
+echo " "
 echo "Reading threshold_mC... "
 set +e
 sudo "$CLI_EXE" readattr threshold_mC
@@ -73,12 +75,24 @@ else
     exit 1
 fi
 
+echo " "
+echo "Test mode... "
+set +e
+sudo "$CLI_EXE" testmode
+RET=$?
+set -e
+if [ $RET -eq 0 ]; then
+    echo "Test mode succesfully!"
+else
+    echo "Test mdoe failed"
+    remove_module
+    exit 1
+fi
+
+echo " "
 echo "Reading temperature... "
 sudo "$CLI_EXE" read &
 CLI_PID=$!
-
-echo "TEST ... "
-sleep 5
 
 # ---------------------------------------------
 # Remove the module

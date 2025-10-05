@@ -52,7 +52,8 @@ static struct nxp_simtemp_cfg_t nxp_simtemp_cfg = {
 /* This variable is used to store the sampling timer */
 static struct hrtimer nxp_simtemp_timer;
 /* This variable is used to store the wait queue */
-static wait_queue_head_t nxp_simtemp_wait = __WAIT_QUEUE_HEAD_INITIALIZER(nxp_simtemp_wait);
+static wait_queue_head_t nxp_simtemp_wait 
+    = __WAIT_QUEUE_HEAD_INITIALIZER(nxp_simtemp_wait);
 /* This variable is used to store the platform device */
 static struct platform_device nxp_simtemp_device = {
     .name = "nxp_simtemp",
