@@ -31,6 +31,25 @@ cleanup() {
     exit 1
 }
 
+run_cli_test() {
+    local cmd="$1"
+    local description="$2"
+
+    echo -e "\n$description..."
+    set +e
+    sudo "$CLI_EXE" $cmd
+    local RET=$?
+    set -e
+
+    if [ $RET -eq 0 ]; then
+        echo "$description successful!"
+    else
+        echo "$description failed!"
+        remove_module
+        exit 1
+    fi
+}
+
 trap cleanup SIGINT SIGTERM
 
 # ---------------------------------------------
@@ -47,52 +66,21 @@ fi
 # ---------------------------------------------
 # CLI test
 # ---------------------------------------------
-echo " "
-echo "Reading sampling_ms... "
-set +e
-sudo "$CLI_EXE" readattr sampling_ms
-RET=$?
-set -e
-if [ $RET -eq 0 ]; then
-    echo "sampling_ms read successfully!"
-else
-    echo "Failed to read sampling_ms"
-    remove_module
-    exit 1
-fi
-
-echo " "
-echo "Reading threshold_mC... "
-set +e
-sudo "$CLI_EXE" readattr threshold_mC
-RET=$?
-set -e
-if [ $RET -eq 0 ]; then
-    echo "threshold_mC read successfully!"
-else
-    echo "Failed to read threshold_mC"
-    remove_module
-    exit 1
-fi
-
-echo " "
-echo "Test mode... "
-set +e
-sudo "$CLI_EXE" testmode
-RET=$?
-set -e
-if [ $RET -eq 0 ]; then
-    echo "Test mode succesfully!"
-else
-    echo "Test mdoe failed"
-    remove_module
-    exit 1
-fi
+run_cli_test "readattr sampling_ms" "Reading sampling_ms"
+run_cli_test "readattr threshold_mC" "Reading threshold_mC"
+run_cli_test "readattr mode" "Reading mode"
+run_cli_test "testmode" "Test mode"
 
 echo " "
 echo "Reading temperature... "
 sudo "$CLI_EXE" read &
 CLI_PID=$!
+
+sleep 5
+run_cli_test "writeattr mode 1" "Writing NOISY mode"
+sleep 5
+run_cli_test "writeattr mode 2" "Writing RAMP mode"
+sleep 5
 
 # ---------------------------------------------
 # Remove the module

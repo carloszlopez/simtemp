@@ -194,8 +194,9 @@ int main(int argc, char* argv[]) {
 
     try {
         if (argc < 2) {
-            std::cerr << "Usage: " << argv[0] << " <operation> [<argument>]\n";
-            return 0;
+            std::cerr << "Usage: " << argv[0]
+                      << " read | testmode | readattr <name> | writeattr <name> <value>\n";
+            return 1;
         }
 
         std::string operation = argv[1];
@@ -206,17 +207,25 @@ int main(int argc, char* argv[]) {
 
         /* Command dispatcher */
         std::unordered_map<std::string, std::function<void()>> commands;
-        commands["read"] = [&dev]() { while (keep_running) {dev.read();} };
-        commands["testmode"] = [&dev]() { dev.test_mode(); };
 
-        if (argc >= 3) {
+        if (operation == "read") {
+            commands["read"] = [&dev]() { while (keep_running) { dev.read(); } };
+        } else if (operation == "testmode") {
+            commands["testmode"] = [&dev]() { dev.test_mode(); };
+        } else if (operation == "readattr" && argc >= 3) {
             std::string arg = argv[2];
             commands["readattr"] = [&dev, arg]() { dev.read_attr(arg); };
+        } else if (operation == "writeattr" && argc >= 4) {
+            std::string name = argv[2];
+            std::string value = argv[3];
+            commands["writeattr"] = [&dev, name, value]() { dev.write_attr(name, value); };
         }
 
         if (commands.find(operation) == commands.end()) {
-            std::cerr << "Unknown operation: " << operation << "\n";
-            return 0;
+            std::cerr << "Unknown or invalid operation: " << operation << "\n";
+            std::cerr << "Usage: " << argv[0]
+                      << " read | testmode | readattr <name> | writeattr <name> <value>\n";
+            return 1;
         }
 
         commands[operation]();
