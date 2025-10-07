@@ -74,7 +74,8 @@ else
         rm -f "$CLI_EXE"
     fi
     echo "Building C++ CLI..."
-    g++ -Wall -Wextra -o "$CLI_EXE" "$CLI_DIR/main.cpp"
+    g++ -std=c++17 -Wall -Wextra -Werror -O2 -o "$CLI_EXE" \
+        "$CLI_DIR/main.cpp" "$CLI_DIR/device.cpp"
 fi
 
 #Footer
