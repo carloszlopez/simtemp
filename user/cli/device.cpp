@@ -1,7 +1,12 @@
 #include "device.h"
 
+#ifdef USE_QT
+Device::Device(const std::string& devPath, const std::string& sysfsBase, QObject* parent)
+    : QObject(parent), devPath(devPath), sysfsBase(sysfsBase) {
+#else
 Device::Device(const std::string& devPath, const std::string& sysfsBase) 
     : devPath(devPath), sysfsBase(sysfsBase) {
+#endif
     fd = ::open(devPath.c_str(), O_RDONLY | O_NONBLOCK);
     if (fd < 0) {
         throw std::runtime_error("Failed to open device: " + devPath + " (" 
@@ -65,6 +70,9 @@ void Device::read() {
                 /* Temperature threshold alert */
                         << " th_flag=" << !!(sample.flags & EVENT_MASK_TH)
                         << "\n";
+#ifdef USE_QT
+            emit readSignal(sample);
+#endif
         }
     }
 }

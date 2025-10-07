@@ -1,3 +1,4 @@
 kernel/kbuild/*
 .vscode/*
 user/cli/nxp_simtemp_cli
+user/gui/build/*
