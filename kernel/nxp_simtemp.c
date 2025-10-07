@@ -40,6 +40,10 @@ static ssize_t threshold_mC_show(struct device *dev,
 static ssize_t threshold_mC_store(struct device *dev, 
                                  struct device_attribute *attr, 
                                  const char *buf, size_t count);
+static ssize_t mode_show(struct device *dev, struct device_attribute *attr,
+                        char *buf);
+static ssize_t mode_store(struct device *dev, struct device_attribute *attr, 
+                          const char *buf, size_t count);
 
 /************************************
  * STATIC VARIABLES
@@ -47,7 +51,8 @@ static ssize_t threshold_mC_store(struct device *dev,
 /* This variable is used to store the configuration */
 static struct nxp_simtemp_cfg_t nxp_simtemp_cfg = {
     .sampling_ms = SAMPLING_TIME,
-    .threshold_mC = TEMP_MAX
+    .threshold_mC = TEMP_MAX,
+    .mode = MODE_NORMAL
 };
 /* This variable is used to store the sampling timer */
 static struct hrtimer nxp_simtemp_timer;
@@ -93,6 +98,8 @@ static struct nxp_simtemp_sample_t nxp_simtemp_sample = {
 static DEVICE_ATTR_RW(sampling_ms);
 /* This variable is used to store the threshold_mC device attribute */
 static DEVICE_ATTR_RW(threshold_mC);
+/* This variable is used to store the mode device attribute */
+static DEVICE_ATTR_RW(mode);
 
 /************************************
  * STATIC FUNCTIONS
@@ -151,6 +158,9 @@ static int nxp_simtemp_probe(struct platform_device *device) {
     ret = device_create_file(nxp_simtemp_miscdev.this_device, 
         &dev_attr_threshold_mC);
     if (ret) return ret;
+    ret = device_create_file(nxp_simtemp_miscdev.this_device, 
+        &dev_attr_mode);
+    if (ret) return ret;
 
     /* Start timer */
     hrtimer_init(&nxp_simtemp_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
@@ -196,15 +206,31 @@ static ssize_t nxp_simtemp_read(struct file *filep, char __user *buf,
 
 /* Function used to simulate temperature */
 static void nxp_simtemp_get_temp(void) {
+    int temp = nxp_simtemp_sample.temp_mC; /* current temperature */
     /* Get a random temp in [TEMP_DELTA_MIN,TEMP_DELTA_MAX] range */
     int temp_delta = TEMP_DELTA_MIN + (get_random_u32() % TEMP_DELTA_RANGE);
-
-    /* Calculate new temperature based on temp_delta */
-    nxp_simtemp_sample.temp_mC += temp_delta;
     
-    /* Clamp temperature to [TEMP_MIN,TEMP_MAX] range */
-    nxp_simtemp_sample.temp_mC = clamp(nxp_simtemp_sample.temp_mC, 
-        TEMP_MIN, TEMP_MAX);
+    switch (nxp_simtemp_cfg.mode) {
+    case MODE_NORMAL:
+        /* Fixed stable value */
+        temp = TEMP_VALUE;
+        break;
+
+    case MODE_NOISY:
+        /* Around baseline + jitter */
+        temp = TEMP_VALUE + temp_delta;
+        break;
+
+    case MODE_RAMP:
+        /* Continuous drift from last value */
+        temp += temp_delta;
+        break;
+
+    default:
+        break;
+    }
+
+    nxp_simtemp_sample.temp_mC = clamp(temp, TEMP_MIN, TEMP_MAX);
     
     printk("nxp_simtemp: temperature is: %d\n", nxp_simtemp_sample.temp_mC);
 }
@@ -288,6 +314,27 @@ static ssize_t threshold_mC_store(struct device *dev,
         return -EINVAL;
 
     nxp_simtemp_cfg.threshold_mC = val;
+    return count;
+}
+
+/* mode show callback */
+static ssize_t mode_show(struct device *dev, struct device_attribute *attr,
+                        char *buf) {
+    return sprintf(buf, "%d\n", nxp_simtemp_cfg.mode);
+}
+
+/* mode store callback */
+static ssize_t mode_store(struct device *dev, struct device_attribute *attr, 
+                          const char *buf, size_t count) {
+    int val;
+
+    if (kstrtoint(buf, 10, &val))
+        return -EINVAL;
+
+    if (val < 0 || val >= MODE_MAX)
+        return -EINVAL;
+
+    nxp_simtemp_cfg.mode = val;
     return count;
 }
 

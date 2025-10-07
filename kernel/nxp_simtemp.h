@@ -21,6 +21,17 @@
 #define TEMP_DELTA_RANGE (TEMP_DELTA_MAX - TEMP_DELTA_MIN + 1) /* Delta range */
 
  /************************************
+ * ENUM
+ ************************************/
+/* Mode values */
+enum mode {
+    MODE_NORMAL = 0, /* Fixed/stable temperature */
+    MODE_NOISY, /* Small random fluctuations around baseline */
+    MODE_RAMP, /* Continuous drift (increase/decrease) */
+    MODE_MAX, /* Max number of modes */
+};
+
+ /************************************
  * STRUCT
  ************************************/
 struct nxp_simtemp_sample_t {
@@ -33,6 +44,7 @@ struct nxp_simtemp_sample_t {
 struct nxp_simtemp_cfg_t {
     int sampling_ms; /* update period */
     int threshold_mC; /* alert threshold in milli‑°C */
+    int mode; /* e.g., normal|noisy|ramp */
 };
 
 #endif
