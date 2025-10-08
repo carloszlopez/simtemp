@@ -9,13 +9,19 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    /* mode */
-    ui->mode_comboBox->addItem("NORMAL");
-    ui->mode_comboBox->addItem("NOISY");
-    ui->mode_comboBox->addItem("RAMP");
+
 
     /* Create device */
     Device* dev = new Device("/dev/nxp_simtemp", "/sys/class/misc/nxp_simtemp");
+
+    /* change mode */
+    ui->mode_comboBox->addItem("NORMAL");
+    ui->mode_comboBox->addItem("NOISY");
+    ui->mode_comboBox->addItem("RAMP");
+    connect(ui->mode_comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
+        [dev](int index){
+            dev->write_attr("mode", std::to_string(index));
+    });
 
     /* Create new thread for reading */
     QThread* readThread = new QThread(this);
@@ -42,10 +48,5 @@ MainWindow::MainWindow(QWidget *parent)
 MainWindow::~MainWindow()
 {
     delete ui;
-}
-
-void MainWindow::on_mode_comboBox_currentIndexChanged(int index)
-{
-
 }
 
