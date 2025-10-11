@@ -13,14 +13,17 @@ INCLUDEPATH += ../cli
 
 SOURCES += \
     ../cli/device.cpp \
+    dialogsettings.cpp \
     gui.cpp \
     mainwindow.cpp
 
 HEADERS += \
     ../cli/device.h \
+    dialogsettings.h \
     mainwindow.h
 
 FORMS += \
+    dialogsettings.ui \
     mainwindow.ui
 
 # Default rules for deployment.

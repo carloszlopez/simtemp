@@ -1,5 +1,6 @@
 #include "device.h"
 #include "mainwindow.h"
+#include "dialogsettings.h"
 #include "ui_mainwindow.h"
 #include <QThread>
 
@@ -8,20 +9,16 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-
-
+    
+    /* Settings dialog */
+    connect(ui->actionConfiguration, &QAction::triggered, this, [this](){
+        DialogSettings* dlg = new DialogSettings(this);
+        dlg->setAttribute(Qt::WA_DeleteOnClose);
+        dlg->show();
+    });
 
     /* Create device */
     Device* dev = new Device("/dev/nxp_simtemp", "/sys/class/misc/nxp_simtemp");
-
-    /* change mode */
-    ui->mode_comboBox->addItem("NORMAL");
-    ui->mode_comboBox->addItem("NOISY");
-    ui->mode_comboBox->addItem("RAMP");
-    connect(ui->mode_comboBox, QOverload<int>::of(&QComboBox::currentIndexChanged),
-        [dev](int index){
-            dev->write_attr("mode", std::to_string(index));
-    });
 
     /* Create new thread for reading */
     QThread* readThread = new QThread(this);
@@ -30,15 +27,39 @@ MainWindow::MainWindow(QWidget *parent)
     /* Read loop */
     connect(readThread, &QThread::started, [dev]() {
         while (true) {
-            dev->read();           // runs in readThread
-            QThread::msleep(100);  // small delay to avoid spinning too fast
+            dev->read();
         }
     });
 
-    /* Display temperature */
-    connect(dev, &Device::readSignal, this, [this](const nxp_simtemp_sample_t &sample){
+    /* Display read */
+    connect(dev, &Device::readSignal, this, [this,dev](const nxp_simtemp_sample_t &sample){
+        /* Show temp */
         double tempC = sample.temp_mC / 1000.0;
-    ui->temp_label->setText(QString::number(tempC, 'f', 2) + " °C");
+        ui->temp_mC_line->setText(QString::number(tempC));
+        ui->temp_mC_dial->setValue(static_cast<int>(tempC));
+        /* Show threshold flag */
+        ui->th_checkBox->setChecked(sample.flags & EVENT_MASK_TH);
+        /* Show time stamp in ns */
+        ui->timestamp_ns_line->setText(QString::number(sample.timestamp_ns));
+
+        /* Read sysfs from driver */
+        dev->read_attr("mode");
+        dev->read_attr("threshold_mC");
+        dev->read_attr("sampling_ms");
+
+        /* Get sysfs values */
+        int mode = dev->get_attr("mode");
+        int threshold_mC = dev->get_attr("threshold_mC");
+        int sampling_ms = dev->get_attr("sampling_ms");
+
+        /* Show mode */
+        ui->norm_checkBox->setChecked(mode == 0);
+        ui->noisy_checkBox->setChecked(mode == 1);
+        ui->ramp_checkBox->setChecked(mode == 2);
+        /* Show threshold */
+        ui->threshold_mC_line->setText(QString::number(threshold_mC / 1000.0));
+        /* Show sampling */
+        ui->threshold_mC_line->setText(QString::number(sampling_ms));
     });
 
     /* Start reading thread */

@@ -77,6 +77,13 @@ void Device::read() {
     }
 }
 
+int Device::get_attr(const std::string &name) const {
+    auto it = attr_map.find(name);
+    if (it == attr_map.end())
+        throw std::runtime_error("Unknown attribute: " + name);
+    return *(it->second);
+}
+
 void Device::read_attr(const std::string& name) {
     auto it = attr_map.find(name);
     if (it == attr_map.end())

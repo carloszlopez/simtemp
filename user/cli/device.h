@@ -58,10 +58,11 @@ Device(const std::string& devPath, const std::string& sysfsBase, QObject* parent
 #endif
     ~Device();
     void read();
+    int get_attr(const std::string &name) const;
     void read_attr(const std::string& name);
     void write_attr(const std::string& name, const std::string& value);
     void test_mode (void);
-    
+
 #ifdef USE_QT
 signals:
     void readSignal(const nxp_simtemp_sample_t &sample);
