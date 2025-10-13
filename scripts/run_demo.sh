@@ -58,10 +58,10 @@ trap cleanup SIGINT SIGTERM
 echo "Instering $MODULE_NAME..."
 if lsmod | grep -q "^nxp_simtemp"; then
     remove_module
-else
+fi
     sudo insmod "$KBUILD_DIR/$MODULE_NAME"
     echo "Module inserted successfully!"
-fi
+
 
 # ---------------------------------------------
 # CLI test
