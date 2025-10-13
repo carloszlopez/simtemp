@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>800</width>
-    <height>600</height>
+    <width>718</width>
+    <height>397</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -486,8 +486,8 @@
    <widget class="QWidget" name="formLayoutWidget_2">
     <property name="geometry">
      <rect>
-      <x>430</x>
-      <y>20</y>
+      <x>420</x>
+      <y>140</y>
       <width>281</width>
       <height>60</height>
      </rect>
@@ -507,13 +507,6 @@
        </property>
       </widget>
      </item>
-     <item row="1" column="0">
-      <widget class="QLabel" name="timestamp_ns_txt">
-       <property name="text">
-        <string>Time Stamp:</string>
-       </property>
-      </widget>
-     </item>
      <item row="1" column="1">
       <widget class="QLineEdit" name="timestamp_ns_line">
        <property name="text">
@@ -521,114 +514,14 @@
        </property>
       </widget>
      </item>
-    </layout>
-   </widget>
-   <widget class="QWidget" name="verticalLayoutWidget">
-    <property name="geometry">
-     <rect>
-      <x>430</x>
-      <y>170</y>
-      <width>307</width>
-      <height>117</height>
-     </rect>
-    </property>
-    <layout class="QVBoxLayout" name="sysfs_layout">
-     <item>
-      <layout class="QHBoxLayout" name="mode_layout">
-       <item>
-        <widget class="QCheckBox" name="norm_checkBox">
-         <property name="text">
-          <string>NORMAL</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="noisy_checkBox">
-         <property name="text">
-          <string>NOISY</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="ramp_checkBox">
-         <property name="text">
-          <string>RAMP</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </item>
-     <item>
-      <layout class="QFormLayout" name="other_layout">
-       <item row="1" column="0">
-        <widget class="QLabel" name="sampling_ms_txt">
-         <property name="text">
-          <string>sampling:</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="1">
-        <widget class="QLineEdit" name="sampling_ms_line">
-         <property name="text">
-          <string>sampling_ms</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="0">
-        <widget class="QLabel" name="threshold_mC_txt">
-         <property name="text">
-          <string>threshold:</string>
-         </property>
-        </widget>
-       </item>
-       <item row="0" column="1">
-        <widget class="QLineEdit" name="threshold_mC_line">
-         <property name="text">
-          <string>threshold_mC</string>
-         </property>
-        </widget>
-       </item>
-      </layout>
+     <item row="1" column="0">
+      <widget class="QLabel" name="timestamp_ns_txt">
+       <property name="text">
+        <string>Time Stamp:</string>
+       </property>
+      </widget>
      </item>
     </layout>
-   </widget>
-   <widget class="QComboBox" name="mode_comboBox">
-    <property name="geometry">
-     <rect>
-      <x>150</x>
-      <y>430</y>
-      <width>204</width>
-      <height>26</height>
-     </rect>
-    </property>
-    <item>
-     <property name="text">
-      <string>NORMAL</string>
-     </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>NOISY</string>
-     </property>
-    </item>
-    <item>
-     <property name="text">
-      <string>RAMP</string>
-     </property>
-    </item>
-   </widget>
-   <widget class="QLabel" name="mode_txt">
-    <property name="geometry">
-     <rect>
-      <x>80</x>
-      <y>430</y>
-      <width>43</width>
-      <height>26</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Mode:</string>
-    </property>
    </widget>
    <widget class="QWidget" name="verticalLayoutWidget_2">
     <property name="geometry">
@@ -668,7 +561,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>800</width>
+     <width>718</width>
      <height>23</height>
     </rect>
    </property>

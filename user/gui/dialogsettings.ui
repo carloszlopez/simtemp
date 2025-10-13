@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Dialog</string>
+   <string>Settings</string>
   </property>
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
@@ -28,6 +28,78 @@
    <property name="standardButtons">
     <set>QDialogButtonBox::StandardButton::Cancel|QDialogButtonBox::StandardButton::Ok</set>
    </property>
+  </widget>
+  <widget class="QWidget" name="formLayoutWidget">
+   <property name="geometry">
+    <rect>
+     <x>20</x>
+     <y>70</y>
+     <width>361</width>
+     <height>151</height>
+    </rect>
+   </property>
+   <layout class="QFormLayout" name="settings_layout">
+    <item row="0" column="0">
+     <widget class="QLabel" name="mode_label">
+      <property name="text">
+       <string>Mode</string>
+      </property>
+     </widget>
+    </item>
+    <item row="0" column="1">
+     <widget class="QComboBox" name="mode_comboBox">
+      <item>
+       <property name="text">
+        <string>NORMAL</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>NOISY</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>RAMP</string>
+       </property>
+      </item>
+     </widget>
+    </item>
+    <item row="1" column="0">
+     <widget class="QLabel" name="sampling_label">
+      <property name="text">
+       <string>Sampling (ms)</string>
+      </property>
+     </widget>
+    </item>
+    <item row="2" column="0">
+     <widget class="QLabel" name="threshold_label">
+      <property name="text">
+       <string>Threshold (mC)</string>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="1">
+     <widget class="QSpinBox" name="sampling_spinBox">
+      <property name="maximum">
+       <number>3600000</number>
+      </property>
+     </widget>
+    </item>
+    <item row="2" column="1">
+     <widget class="QSpinBox" name="threshold_spinBox">
+      <property name="minimum">
+       <number>-70000</number>
+      </property>
+      <property name="maximum">
+       <number>70000</number>
+      </property>
+      <property name="value">
+       <number>0</number>
+      </property>
+     </widget>
+    </item>
+   </layout>
   </widget>
  </widget>
  <resources/>
