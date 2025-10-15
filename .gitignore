@@ -1,4 +1,11 @@
-kernel/kbuild/*
+kernel/*
+!kernel/*.c
+!kernel/*.h
+!kernel//Makefile
 .vscode/*
-user/cli/nxp_simtemp_cli
+user/cli/*
+!user/cli/*.c
+!user/cli/*.h
+!user/cli/Makefile
 user/gui/build/*
+*.log
