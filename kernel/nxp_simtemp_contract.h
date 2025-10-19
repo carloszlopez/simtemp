@@ -1,10 +1,14 @@
-#ifndef DEVICE_H
-#define DEVICE_H
+#ifndef NXP_SIMTEMP_CONTRACT_H
+#define NXP_SIMTEMP_CONTRACT_H
 
  /************************************
  * Includes
  ************************************/
+#ifdef __KERNEL__
 #include <linux/types.h>
+#else
+#include <stdint.h>
+#endif
 
  /************************************
  * Defines
@@ -25,9 +29,9 @@
  ************************************/
 /* Represents the binary record (sample) */
 struct nxp_simtemp_sample_t {
-    __u64 timestamp_ns;   /* Monotonic timestamp in nano-secs */
-    __s32 temp_mC;        /* Temperature value in m°C */
-    __u32 flags;          /* Events flags */
+    uint64_t timestamp_ns; /* Monotonic timestamp in nano-secs */
+    int32_t  temp_mC; /* Temperature value in m°C */
+    uint32_t flags; /* Events flags */
 } __attribute__((packed));
 
 /* Represents the sysfs attributes */
