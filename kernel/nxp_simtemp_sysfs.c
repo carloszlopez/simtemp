@@ -3,17 +3,12 @@
  ************************************/
 #include "nxp_simtemp.h"
 
- /************************************
- * Defines
- ************************************/
-#define SAMPLING_TIME (1000) /* Default sampling time (1 sec) */
-
 /************************************
  * External variables
  ************************************/
 /* Holds the value of the sysfs attributes */
 struct nxp_simtemp_sysfs_t nxp_simtemp_sysfs = {
-    .sampling_ms = SAMPLING_TIME,
+    .sampling_ms = TIMER_INIT,
     .threshold_mC = TEMP_MAX,
     .mode = MODE_NORMAL
 };
@@ -81,7 +76,7 @@ static ssize_t mode_store(struct device *dev, struct device_attribute *attr,
         return -EINVAL;
 
     /* Incorrect value */
-    if (val < MODE_NORMAL || val >= MODE_MAX)
+    if ((val < MODE_NORMAL) || (val > MODE_RAMP))
         return -EINVAL;
 
     nxp_simtemp_sysfs.mode = val;
