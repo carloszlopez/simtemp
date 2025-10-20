@@ -13,8 +13,8 @@
 #include <unordered_map>
 #include <functional>
 #include <iomanip>
-#include <stdint.h>
 #include <ctime>
+#include "nxp_simtemp_contract.h"
 #ifdef USE_QT
 #include <QObject>
 #endif
@@ -22,24 +22,7 @@
  /************************************
  * DEFINE
  ************************************/
-#define EVENT_MASK_TIMER (0x1)
-#define EVENT_MASK_TH (0x2)
 #define TEST_CYCLES (2)
-
- /************************************
- * STRUCT
- ************************************/
-struct nxp_simtemp_sample_t {
-    uint64_t timestamp_ns;
-    int32_t temp_mC;
-    uint32_t flags;
-} __attribute__((packed));
-
-struct SysfsAttrs {
-    int sampling_ms;
-    int threshold_mC;
-    int mode;
-};
 
  /************************************
  * CLASS
@@ -72,8 +55,8 @@ private:
     std::string devPath;
     std::string sysfsBase;
     int fd{-1};
-    nxp_simtemp_sample_t sample{};
-    SysfsAttrs attrs{};
+    struct nxp_simtemp_sample_t sample{};
+    struct nxp_simtemp_sysfs_t attrs{};
     std::unordered_map<std::string, int*> attr_map;
 };
 

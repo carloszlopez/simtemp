@@ -66,9 +66,9 @@ void Device::read() {
                 /* Time in Celsius */
                         << " temp=" << sample.temp_mC / 1000.0 << "°C"
                 /* Timer alert */
-                        << " tmr_flag=" << !!(sample.flags & EVENT_MASK_TIMER)
+                        << " tmr_flag=" << !!(sample.flags & TIMER_EVENT)
                 /* Temperature threshold alert */
-                        << " th_flag=" << !!(sample.flags & EVENT_MASK_TH)
+                        << " th_flag=" << !!(sample.flags & THRESHOLD_EVENT)
                         << "\n";
 #ifdef USE_QT
             emit readSignal(sample);
@@ -158,7 +158,7 @@ void Device::test_mode (void) {
     /* Read TEST_CYCLES times */
     for (int test_cycles = 0; test_cycles < TEST_CYCLES; test_cycles++) {
         read();
-        if (!!(sample.flags & EVENT_MASK_TH)) {
+        if (!!(sample.flags & THRESHOLD_EVENT)) {
             std::cout << "Alert raised in " 
                 << test_cycles + 1 
                 << " cycles " << "\n";
@@ -170,7 +170,7 @@ void Device::test_mode (void) {
     }
 
     /* Check if treshold flag was raised */
-    if (!(sample.flags & EVENT_MASK_TH)) {
+    if (!(sample.flags & THRESHOLD_EVENT)) {
         throw std::runtime_error("threshold_mC test failed ");
     }
 }

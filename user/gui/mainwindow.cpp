@@ -75,7 +75,7 @@ MainWindow::MainWindow(QWidget *parent)
         ui->temp_mC_line->setText(QString::number(tempC));
         ui->temp_mC_dial->setValue(static_cast<int>(tempC));
         /* Show threshold flag */
-        ui->th_checkBox->setChecked(sample.flags & EVENT_MASK_TH);
+        ui->th_checkBox->setChecked(sample.flags & THRESHOLD_EVENT);
         /* Show time stamp in ns */
         ui->timestamp_ns_line->setText(QString::number(sample.timestamp_ns));
     });
