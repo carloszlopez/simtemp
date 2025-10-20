@@ -7,33 +7,7 @@
 #include <linux/miscdevice.h>
 #include <linux/poll.h>
 #include <linux/uaccess.h>
-
- /************************************
- * Enumerations
- ************************************/
-/* Temperature values in miliCelsius */
-enum nxp_simtemp_temp_t {
-    TEMP_MIN = -70000, /* Minimum temperature */
-    TEMP_INIT = 25000, /* Initial temperature value */
-    TEMP_MAX = 70000, /* Maximum temperature and default threshold */
-};
-/* Temperature simulation mode values */
-enum nxp_simtemp_mode_t {
-    MODE_NORMAL = 0, /* Fixed/stable temperature */
-    MODE_NOISY, /* Small random fluctuations around baseline */
-    MODE_RAMP, /* Continuous drift (increase/decrease) */
-    MODE_MAX, /* Max number of modes */
-};
-
- /************************************
- * Structs
- ************************************/
-/* Represents the sysfs attributes */
-struct nxp_simtemp_sysfs_t {
-    int sampling_ms; /* update period */
-    int threshold_mC; /* alert threshold in milli‑°C */
-    int mode; /* e.g., normal|noisy|ramp */
-};
+#include "nxp_simtemp_contract.h"
 
 /************************************
  * Variables
@@ -42,7 +16,7 @@ extern struct miscdevice nxp_simtemp_miscdev;
 extern struct nxp_simtemp_sysfs_t nxp_simtemp_sysfs;
 
 /************************************
- * functions
+ * Functions
  ************************************/
 int nxp_simtemp_buffer_init(void);
 void nxp_simtemp_buffer_deinit(void);

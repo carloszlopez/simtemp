@@ -9,31 +9,11 @@
 #include "nxp_simtemp.h"
 
 /************************************
- * Enumerations
+ * Defines
  ************************************/
-/* Represents the events in sample.flags */
-enum event_t {
-    NO_EVENT = 0x0, /* Event mask DEFAULT value */
-    TIMER_EVENT = 0x1, /* Event mask for time expired */
-    THRESHOLD_EVENT =  0x2, /* Event mask for time threshold crossed */
-};
-
-/* Represents temperature delta values in miliCelsius */
-enum delta_temp_t {
-    TEMP_DELTA_MIN = -5000, /* Max temperature delta */
-    TEMP_DELTA_MAX = 5000, /* Min temperature delta */
-    TEMP_DELTA_RANGE = (TEMP_DELTA_MAX - TEMP_DELTA_MIN + 1), /* Delta range */
-};
-
-/************************************
- * Structs
- ************************************/
-/* Represents the sample values */
-struct sample_t {
-    __u64 timestamp_ns;   /* monotonic timestamp */
-    __s32 temp_mC;        /* milli-degree Celsius */
-    __u32 flags;          /* Events */
-} __attribute__((packed));
+#define TEMP_DELTA_MIN (-5000) /* Max temperature delta */
+#define TEMP_DELTA_MAX (5000) /* Min temperature delta */
+#define TEMP_DELTA_RANGE (TEMP_DELTA_MAX - TEMP_DELTA_MIN + 1) /* Delta range */
 
 /************************************
  * Internal variables
@@ -45,9 +25,9 @@ static struct hrtimer sampling_timer;
 static wait_queue_head_t wait_queue = __WAIT_QUEUE_HEAD_INITIALIZER(wait_queue);
 
 /* Holds the sample values */
-static struct sample_t sample = {
+static struct nxp_simtemp_sample_t sample = {
     .timestamp_ns = 0,
-    .temp_mC = TEMP_INIT,
+    .temp_mC = TEMP_BASE,
     .flags = NO_EVENT,
 };
 
@@ -63,12 +43,12 @@ static void update_temperature(void) {
     switch (nxp_simtemp_sysfs.mode) {
     case MODE_NORMAL:
         /* Fixed stable value */
-        temp = TEMP_INIT;
+        temp = TEMP_BASE;
         break;
 
     case MODE_NOISY:
         /* Around baseline + jitter */
-        temp = TEMP_INIT + temp_delta;
+        temp = TEMP_BASE + temp_delta;
         break;
 
     case MODE_RAMP:
