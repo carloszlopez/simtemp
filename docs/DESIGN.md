@@ -10,9 +10,6 @@ nxp_simtemp is split into core, sysfs and buffer:
 * **sysfs** for the attrbiutes implementation.  
 * **buffer** implements the [fops](#fops-glossary) and how the sensor generates the data.
 
-## Diagrams
-
-
 ## Contract
 [Contract](#contract-glossary) is defined in ..\kernel\nxp_simtemp_contract.h
 
@@ -47,6 +44,11 @@ Reading /dev/nxp_simtemp returns a binary record (sample) with below:
 | temp_mC | 32 | Temperature value in m°C |
 | <a id="flags-glossary"></a>flags | 32 | Events flags |
 
+## Diagrams
+### Read sequence
+This sequence diagram shows a basic blocking read interaction between [user](#user-glossary) and nxp_simtemp [driver](#driver-glossary)
+![read-seq-diagram](<Read sequence.jpg>)
+
 ## Glosary
 | Concept | Description |
 | ------- | ----------- |
@@ -55,4 +57,5 @@ Reading /dev/nxp_simtemp returns a binary record (sample) with below:
 | <a id="modules-glossary"></a>Modules | .c files |
 | <a id="sysfs-glossary"></a>Sysfs | System filesystem |
 | <a id="fops-glossary"></a>Fops | File operations |
+| <a id="user-glossary"></a>User | Process running in user space |
 | <a id="contract-glossary"></a>Contract | Kernel-user communication contract |
