@@ -76,4 +76,5 @@ Settings window reads the [sysfs](#sysfs-glossary) and writes the values to them
 | <a id="sysfs-glossary"></a>Sysfs | System filesystem |
 | <a id="fops-glossary"></a>Fops | File operations |
 | <a id="user-glossary"></a>User | Process running in user space |
+| <a id="user-glossary"></a>User | Process running in user space |
 | <a id="contract-glossary"></a>Contract | Kernel-user communication contract |
