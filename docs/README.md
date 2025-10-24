@@ -19,3 +19,7 @@ Demonstrate the kernel\nxp_simtemp.ko, user\cli\nxp_simtemp_cli and user\gui\bui
 4. Remove nxp_simtemp.ko
 
 *note: for more information, please check the [DESIGN](DESIGN.md) documentation*
+
+# Links
+- Video presentation: https://drive.google.com/file/d/1DpQBfgv0GUhd_npHIchCipTYI6fHNXzn/view?usp=sharing
+- Git repository: https://github.com/carloszlopez/simtemp.git
