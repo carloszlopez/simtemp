@@ -1,0 +1,36 @@
+# general
+.vscode/*
+
+# cli
+user/cli/device.o
+user/cli/main.o
+user/cli/nxp_simtemp_cli
+
+# gui
+user/gui/build/*
+
+# scripts
+scripts/nxp_simtemp.log
+
+# kernel
+kernel/..module-common.o.cmd
+kernel/.module-common.o
+kernel/.Module.symvers.cmd
+kernel/.modules.order.cmd
+kernel/.nxp_simtemp_buffer.o.cmd
+kernel/.nxp_simtemp_core.o.cmd
+kernel/.nxp_simtemp_sysfs.o.cmd
+kernel/.nxp_simtemp.ko.cmd
+kernel/.nxp_simtemp.mod.cmd
+kernel/.nxp_simtemp.mod.o.cmd
+kernel/.nxp_simtemp.o.cmd
+kernel/Module.symvers
+kernel/modules.order
+kernel/nxp_simtemp_buffer.o
+kernel/nxp_simtemp_core.o
+kernel/nxp_simtemp_sysfs.o
+kernel/nxp_simtemp.ko
+kernel/nxp_simtemp.mod
+kernel/nxp_simtemp.mod.c
+kernel/nxp_simtemp.mod.o
+kernel/nxp_simtemp.o
